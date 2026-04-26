@@ -1,47 +1,58 @@
 package com.example.registredesvendeurs
 
+
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.*
 import com.example.registredesvendeurs.ui.theme.RegistreDesVendeursTheme
+import com.example.registredesvendeurs.ui.theme.vendor.AddVendorScreen
+import com.example.registredesvendeurs.ui.theme.vendor.VendorListScreen
+import com.example.registredesvendeurs.ui.theme.vendor.VendorViewModel
+import com.example.registredesvendeurs.ui.theme.vendor.VendorRepository
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             RegistreDesVendeursTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                // Initialisation du ViewModel avec son Repository
+                val viewModel: VendorViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                            return VendorViewModel(VendorRepository()) as T
+                        }
+                    }
+                )
+                AppNavigation(viewModel)
             }
         }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun AppNavigation(viewModel: VendorViewModel) {
+    val navController = rememberNavController()
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    RegistreDesVendeursTheme {
-        Greeting("Android")
+    NavHost(navController = navController, startDestination = "list") {
+        composable("list") {
+            VendorListScreen(
+                viewModel = viewModel,
+                // On essaie le nom standard
+                onNavigateToAdd = { navController.navigate("add") }
+            )
+        }
+
+        composable("add") {
+            AddVendorScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
     }
 }
