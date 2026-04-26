@@ -1,0 +1,16 @@
+/build
+# Fichiers générés par Android Studio
+.gradle/
+.idea/
+build/
+app/build/
+
+# Fichiers système
+.DS_Store
+*.iml
+*.iws
+*.ipr
+*.iws
+
+# Fichiers de configuration locale (très important !)
+local.properties
