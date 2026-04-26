@@ -56,4 +56,17 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // Jetpack Compose & Navigation
+    implementation("androidx.navigation:navigation-compose:2.8.0")
+
+    // Supabase (Backend)
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.0.0")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.0.0")
+
+    // Coil (Gestion des images)
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Coroutines pour l'asynchronisme
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt:2.0.0")
 }
