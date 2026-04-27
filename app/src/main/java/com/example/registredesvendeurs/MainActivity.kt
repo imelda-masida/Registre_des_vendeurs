@@ -15,24 +15,25 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-// CORRECTION : On importe AppTheme au lieu de RegistreDesVendeursTheme
 import com.example.registredesvendeurs.ui.theme.AppTheme
 import com.example.registredesvendeurs.ui.theme.vendor.AddVendorScreen
 import com.example.registredesvendeurs.ui.theme.vendor.VendorListScreen
 import com.example.registredesvendeurs.ui.theme.vendor.VendorRepository
 import com.example.registredesvendeurs.ui.theme.vendor.VendorViewModel
 
+
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // CORRECTION : Utilisation de AppTheme ici
+            // On applique ton thème personnalisé Material 3
             AppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Initialisation du ViewModel
+                    // Initialisation propre du ViewModel avec sa Factory
                     val viewModel: VendorViewModel = viewModel(
                         factory = object : ViewModelProvider.Factory {
                             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     )
+                    // Lancement de la navigation
                     AppNavigation(viewModel)
                 }
             }
@@ -56,6 +58,7 @@ fun AppNavigation(viewModel: VendorViewModel) {
         navController = navController,
         startDestination = "list"
     ) {
+        // Écran de la liste des vendeurs
         composable("list") {
             VendorListScreen(
                 viewModel = viewModel,
@@ -63,6 +66,7 @@ fun AppNavigation(viewModel: VendorViewModel) {
             )
         }
 
+        // Écran d'ajout d'un vendeur
         composable("add") {
             AddVendorScreen(
                 viewModel = viewModel,

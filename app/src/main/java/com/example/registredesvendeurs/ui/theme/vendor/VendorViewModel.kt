@@ -1,46 +1,73 @@
 package com.example.registredesvendeurs.ui.theme.vendor
 
 
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.registredesvendeurs.SupabaseInstance
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.storage.storage // Assurez-vous que cet import est présent
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+// 1. MODÈLE COMPLET (Ajout de category et SerialName pour imageUrl)
 @Serializable
 data class Vendor(
     val id: Int? = null,
     val name: String,
     @SerialName("table_number")
     val tableNumber: String,
+    val category: String, // AJOUTÉ : Requis par le cahier des charges
+    @SerialName("image_url") // Correction : assure la correspondance avec Supabase
     val imageUrl: String? = null
 )
 
+// 2. REPOSITORY AMÉLIORÉ (CRUD COMPLET)
 class VendorRepository {
-    suspend fun getAllVendors(): List<Vendor> {
-        return SupabaseInstance.client.postgrest["vendors"]
-            .select()
-            .decodeList<Vendor>()
+    private val postgrest = SupabaseInstance.client.postgrest["vendors"]
+
+    suspend fun getAllVendors(): List<Vendor> = postgrest.select().decodeList<Vendor>()
+
+    suspend fun insertVendor(vendor: Vendor) = postgrest.insert(vendor)
+
+    // AJOUTÉ : Mise à jour (Update)
+    suspend fun updateVendor(vendor: Vendor) {
+        postgrest.update(vendor) {
+            filter { eq("id", vendor.id ?: 0) }
+        }
     }
 
-    suspend fun insertVendor(vendor: Vendor) {
-        SupabaseInstance.client.postgrest["vendors"].insert(vendor)
+    // AJOUTÉ : Suppression (Delete)
+    suspend fun deleteVendor(id: Int) {
+        postgrest.delete {
+            filter { eq("id", id) }
+        }
     }
 }
 
+// 3. VIEWMODEL RÉACTIF
 class VendorViewModel(private val repository: VendorRepository) : ViewModel() {
 
     private val _allVendors = MutableStateFlow<List<Vendor>>(emptyList())
     private val _searchQuery = MutableStateFlow("")
+    private val _isLoading = MutableStateFlow(false)
 
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    val filteredVendors = _allVendors.combine(_searchQuery) { vendors, query ->
-        if (query.isBlank()) vendors else vendors.filter { it.name.contains(query, ignoreCase = true) }
+    // RECHERCHE DYNAMIQUE (Filtrage sur Nom OU Table OU Catégorie)
+    val filteredVendors = combine(_allVendors, _searchQuery) { vendors, query ->
+        if (query.isBlank()) {
+            vendors
+        } else {
+            vendors.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                        it.tableNumber.contains(query) ||
+                        it.category.contains(query, ignoreCase = true)
+            }
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -53,23 +80,42 @@ class VendorViewModel(private val repository: VendorRepository) : ViewModel() {
 
     fun loadVendors() {
         viewModelScope.launch {
+            _isLoading.value = true
             try {
-                val result = repository.getAllVendors()
-                _allVendors.value = result
+                _allVendors.value = repository.getAllVendors()
             } catch (e: Exception) {
-                println("Erreur de chargement : ${e.message}")
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    fun addVendor(name: String, table: String) {
+    fun addVendor(name: String, table: String, category: String) {
         viewModelScope.launch {
             try {
-                val newVendor = Vendor(name = name, tableNumber = table)
+                val newVendor = Vendor(
+                    name = name,
+                    tableNumber = table, // Assurez-vous que le nom dans Vendor.kt est tableNumber
+                    category = category,
+                    imageUrl = null
+                )
                 repository.insertVendor(newVendor)
+                loadVendors() // Recharge la liste pour voir le nouveau vendeur
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // SUPPRESSION (Delete)
+    fun deleteVendor(id: Int) {
+        viewModelScope.launch {
+            try {
+                repository.deleteVendor(id)
                 loadVendors()
             } catch (e: Exception) {
-                println("Erreur d'ajout : ${e.message}")
+                e.printStackTrace()
             }
         }
     }
@@ -78,30 +124,32 @@ class VendorViewModel(private val repository: VendorRepository) : ViewModel() {
         _searchQuery.value = newQuery
     }
 
-
-    fun uploadImageAndSaveVendor(vendor: Vendor, imageBytes: ByteArray) {
-        viewModelScope.launch { // Maintenant reconnu car dans le ViewModel
+    // UPLOAD IMAGE ET SAUVEGARDE (Create / Update)
+    fun uploadImageAndSaveVendor(vendor: Vendor, imageBytes: ByteArray?) {
+        viewModelScope.launch {
             try {
-                // 1. Nom unique pour l'image
-                val fileName = "etalage_${System.currentTimeMillis()}.jpg"
+                var finalImageUrl = vendor.imageUrl
 
-                // 2. Accès au Storage Supabase
-                val bucket = SupabaseInstance.client.storage.from("images")
+                // Si une nouvelle image est fournie, on l'upload
+                if (imageBytes != null) {
+                    val fileName = "etalage_${System.currentTimeMillis()}.jpg"
+                    val bucket = SupabaseInstance.client.storage.from("images")
+                    bucket.upload(fileName, imageBytes)
+                    finalImageUrl = bucket.publicUrl(fileName)
+                }
 
-                // 3. Upload du fichier
-                bucket.upload(fileName, imageBytes)
+                val finalVendor = vendor.copy(imageUrl = finalImageUrl)
 
-                // 4. Récupération de l'URL publique
-                val publicUrl = bucket.publicUrl(fileName)
+                // Si l'id existe, c'est un Update, sinon c'est un Insert
+                if (finalVendor.id != null) {
+                    repository.updateVendor(finalVendor)
+                } else {
+                    repository.insertVendor(finalVendor)
+                }
 
-                // 5. Enregistrement final avec l'URL de l'image
-                val finalVendor = vendor.copy(imageUrl = publicUrl)
-                repository.insertVendor(finalVendor) // Maintenant reconnu
-
-                // 6. Rafraîchir la liste
-                loadVendors() // Maintenant reconnu
+                loadVendors()
             } catch (e: Exception) {
-                println("Erreur upload : ${e.message}")
+                e.printStackTrace()
             }
         }
     }

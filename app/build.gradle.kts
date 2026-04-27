@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.material3)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -69,4 +70,18 @@ dependencies {
     // Coroutines pour l'asynchronisme
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("io.github.jan-tennert.supabase:gotrue-kt:2.0.0")
+
+        // ... vos autres dépendances
+        implementation("io.github.jan-tennert.supabase:postgrest-kt:2.0.0")
+        implementation("io.github.jan-tennert.supabase:storage-kt:2.0.0")
+        implementation("io.github.jan-tennert.supabase:gotrue-kt:2.0.0")
+
+        // TRÈS IMPORTANT : Client HTTP pour Android
+        implementation("io.ktor:ktor-client-android:2.3.12")
+
+
+        // pour les icônes étendues
+        implementation("androidx.compose.material:material-icons-extended")
+    implementation("io.github.jan-tennert.supabase:supabase-kt:VERSION")
+
 }

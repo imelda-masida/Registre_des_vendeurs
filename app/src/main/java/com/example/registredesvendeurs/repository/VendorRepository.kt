@@ -1,8 +1,10 @@
 package com.example.registredesvendeurs.repository
 
+
 import com.example.registredesvendeurs.SupabaseInstance
 import com.example.registredesvendeurs.model.Vendor
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 
@@ -18,8 +20,7 @@ class VendorRepository {
 
     // Créer (Create) : Ajouter un vendeur
     suspend fun insertVendor(vendor: Vendor) {
-        withContext(Dispatchers.IO) {
-            client.from("vendors").insert(vendor)
-        }
+        SupabaseInstance.client.postgrest["vendors"].insert(vendor)
+
     }
 }

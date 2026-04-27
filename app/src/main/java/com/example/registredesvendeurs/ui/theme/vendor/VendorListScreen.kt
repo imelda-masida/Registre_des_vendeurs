@@ -1,5 +1,6 @@
 package com.example.registredesvendeurs.ui.theme.vendor
 
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,78 +20,93 @@ import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VendorListScreen(viewModel: VendorViewModel, onNavigateToAdd: () -> Unit ) {
-    // 1. Observation des données : On "écoute" le ViewModel
-    // 'by' permet de récupérer directement la valeur du Flow
-
+fun VendorListScreen(viewModel: VendorViewModel, onNavigateToAdd: () -> Unit) {
     val vendors by viewModel.filteredVendors.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
-    // 2. Structure principale de l'écran (Scaffold)
     Scaffold(
-        topBar = { /* ... */ },
-        // 5. LE BOUTON FLOTTANT (FAB)
+        topBar = {
+            TopAppBar(title = { Text("Registre des Vendeurs") })
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onNavigateToAdd) {
                 Icon(Icons.Default.Add, contentDescription = "Ajouter")
             }
         }
     ) { paddingValues ->
-        // Colonne pour empiler la recherche et la liste
-        Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
-
-            // 3. LA BARRE DE RECHERCHE (Composant Material 3)
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            // Barre de recherche réactive
             SearchBar(
-                query = searchQuery, // Texte actuel
-                onQueryChange = { viewModel.onSearchQueryChange(it) }, // Action quand on tape
-                onSearch = { /* Action quand on appuie sur Entrée */ },
-                active = false, // La barre reste intégrée à la liste
+                query = searchQuery,
+                onQueryChange = { viewModel.onSearchQueryChange(it) },
+                onSearch = { },
+                active = false,
                 onActiveChange = { },
                 placeholder = { Text("Rechercher un vendeur ou une table...") },
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
             ) { }
 
-            // 4. LA LISTE DÉFILANTE (LazyColumn = optimisation mémoire)
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp) // Espace entre les cartes
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Pour chaque vendeur dans la liste filtrée
                 items(vendors) { vendor ->
-                    // Appel d'un composant personnalisé pour afficher un vendeur
                     VendorCard(vendor)
                 }
             }
         }
     }
 }
+
 @Composable
 fun VendorCard(vendor: Vendor) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = MaterialTheme.shapes.medium // Respect du cahier des charges Shapes
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-
-            // AFFICHAGE DE L'IMAGE
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Affichage de l'image avec Coil
             AsyncImage(
-                // Si imageUrl est null, on peut mettre une image par défaut ou gérer le vide
-                model = vendor.imageUrl,// L'URL qui vient de Supabase
+                model = vendor.imageUrl,
                 contentDescription = "Photo de l'étalage",
                 modifier = Modifier
                     .size(64.dp)
-                    .clip(RoundedCornerShape(8.dp))// Bords arrondis (Material 3)
-                    .background(MaterialTheme.colorScheme.surfaceVariant), // Fond si image vide
-                contentScale = ContentScale.Crop// Recadre l'image pour remplir le carré
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentScale = ContentScale.Crop
             )
 
             Spacer(modifier = Modifier.width(16.dp))
 
             Column {
-                Text(text = vendor.name, style = MaterialTheme.typography.titleMedium)
-                // tableNumber est maintenant reconnu car ajouté dans la data class
-                Text(text = "Table : ${vendor.tableNumber}", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = vendor.name,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "Table : ${vendor.tableNumber}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                // Affichage de la catégorie (Exigence du sujet)
+                Text(
+                    text = vendor.category,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
