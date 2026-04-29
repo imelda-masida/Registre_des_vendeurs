@@ -1,6 +1,4 @@
-package com.example.registredesvendeurs.model
-
-
+package com.example.registredesvendeurs.repository // <--- TRÈS IMPORTANT
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -11,7 +9,7 @@ data class Vendor(
     val name: String,
     @SerialName("table_number")
     val tableNumber: String,
-    val category: String, // Requis par le cahier des charges
+    val category: String,
     @SerialName("image_url")
     val imageUrl: String? = null
 )

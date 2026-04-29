@@ -1,13 +1,19 @@
 package com.example.registredesvendeurs.ui.theme.vendor
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,94 +24,82 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.registredesvendeurs.repository.Vendor
 
+/**
+ * ÉCRAN PRINCIPAL : Liste des vendeurs avec recherche dynamique
+ * Respecte le cahier des charges : Material 3 SearchBar et MVVM StateFlow
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VendorListScreen(viewModel: VendorViewModel, onNavigateToAdd: () -> Unit) {
-    // Observation de la liste des vendeurs
+fun VendorListScreen(
+    viewModel: VendorViewModel,
+    onNavigateToAdd: () -> Unit,
+    onNavigateToEdit: (Int) -> Unit,
+    onNavigateToDetail: (Int) -> Unit
+) {
+    // Collecte des états depuis le ViewModel (Logique réactive)
     val vendors by viewModel.filteredVendors.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
+    val query by viewModel.searchQuery.collectAsState()
+    var active by remember { mutableStateOf(false) }
 
-    // Charger les données dès l'ouverture de l'écran
+    // Charger les données au démarrage
     LaunchedEffect(Unit) {
         viewModel.loadVendors()
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // LOGO : Remplacer Storefront par votre logo personnalisé si besoin
-                        Icon(
-                            imageVector = Icons.Default.Storefront,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text("Mes Vendeurs", fontWeight = FontWeight.Bold)
+            // 1. RECHERCHE DYNAMIQUE (Section 2 du cahier des charges)
+            SearchBar(
+                query = query,
+                onQueryChange = { viewModel.onSearchQueryChange(it) },
+                onSearch = { active = false },
+                active = active,
+                onActiveChange = { active = it },
+                placeholder = { Text("Rechercher un vendeur ou table...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (active) {
+                        IconButton(onClick = { active = false }) {
+                            Icon(Icons.Default.Close, contentDescription = null)
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            )
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = if (active) 0.dp else 16.dp)
+            ) {
+                // Suggestions ou historique (optionnel)
+            }
         },
         floatingActionButton = {
+            // Bouton d'ajout stylisé Material 3
             ExtendedFloatingActionButton(
                 onClick = onNavigateToAdd,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White,
                 icon = { Icon(Icons.Default.Add, null) },
-                text = { Text("Ajouter un vendeur") }
+                text = { Text("Nouveau Vendeur") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Barre de recherche stylisée
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.onSearchQueryChange(it) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                placeholder = { Text("Rechercher un vendeur...") },
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true
-            )
+        Column(modifier = Modifier.padding(padding)) {
 
+            // Affichage de la liste ou message vide
             if (vendors.isEmpty()) {
-                // ÉCRAN VIDE
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        // CORRECTION ICI : size se met dans le Modifier
-                        Icon(
-                            imageVector = Icons.Default.CloudOff,
-                            contentDescription = null,
-                            modifier = Modifier.size(80.dp),
-                            tint = Color.Gray
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        Text("Aucun vendeur trouvé", style = MaterialTheme.typography.headlineSmall)
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick = { viewModel.loadVendors() }) {
-                            Text("Actualiser la liste")
-                        }
-                    }
+                    Text("Aucun vendeur trouvé", color = Color.Gray)
                 }
             } else {
-                // LISTE DES CARTES
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp)
+                    contentPadding = PaddingValues(bottom = 80.dp) // Espace pour le FAB
                 ) {
                     items(vendors) { vendor ->
-                        VendorCard(vendor = vendor, onDelete = { viewModel.deleteVendor(it) })
+                        VendorCard(
+                            vendor = vendor,
+                            onClick = { vendor.id?.let { onNavigateToDetail(it) } },
+                            onDelete = { vendor.id?.let { viewModel.deleteVendor(it) } }
+                        )
                     }
                 }
             }
@@ -113,22 +107,32 @@ fun VendorListScreen(viewModel: VendorViewModel, onNavigateToAdd: () -> Unit) {
     }
 }
 
+/**
+ * COMPOSANT ITEM : La carte d'un vendeur
+ */
 @Composable
-fun VendorCard(vendor: Vendor, onDelete: (Int) -> Unit) {
+fun VendorCard(
+    vendor: Vendor,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Image du vendeur
             AsyncImage(
                 model = vendor.imageUrl ?: "https://via.placeholder.com/150",
-                contentDescription = null,
+                contentDescription = "Photo étalage",
                 modifier = Modifier
                     .size(70.dp)
                     .clip(RoundedCornerShape(12.dp)),
@@ -137,20 +141,37 @@ fun VendorCard(vendor: Vendor, onDelete: (Int) -> Unit) {
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Textes
             Column(modifier = Modifier.weight(1f)) {
-                Text(vendor.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Table n°${vendor.tableNumber}", style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    vendor.category,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    text = vendor.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
+                Text(
+                    text = "Table n°${vendor.tableNumber}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Text(
+                        text = vendor.category,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
 
-            // Bouton supprimer
-            IconButton(onClick = { vendor.id?.let { onDelete(it) } }) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Supprimer",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }

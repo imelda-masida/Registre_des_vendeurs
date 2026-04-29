@@ -1,43 +1,43 @@
 package com.example.registredesvendeurs.ui.theme.vendor
 
+import androidx.compose.animation.core.copy
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+
+// On importe le modèle uniquement depuis le repository
 import com.example.registredesvendeurs.repository.Vendor
 import com.example.registredesvendeurs.repository.VendorRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel pour gérer la logique métier de l'écran des vendeurs.
- * Gère la recherche, le chargement, l'enregistrement et la suppression.
+ * ViewModel pour la gestion des vendeurs.
+ * Conforme au cahier des charges : MVVM, StateFlow, et logique de recherche réactive.
  */
 class VendorViewModel(private val repository: VendorRepository) : ViewModel() {
 
-    // --- ÉTATS PRIVÉS (StateFlow pour la réactivité) ---
+    // Liste brute des vendeurs venant de Supabase
     private val _vendors = MutableStateFlow<List<Vendor>>(emptyList())
+
+    // Requête de recherche saisie par l'utilisateur
     private val _searchQuery = MutableStateFlow("")
-    private val _showSuccessMessage = MutableStateFlow(false)
+    val searchQuery = _searchQuery.asStateFlow()
 
-    // États pour gérer l'interface pendant l'enregistrement
+    // État de chargement pour le bouton enregistrer
     private val _isSaving = MutableStateFlow(false)
-    private val _isSaved = MutableStateFlow(false)
-
-    // --- ÉTATS PUBLICS (Exposés à l'UI en lecture seule) ---
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
-    val showSuccessMessage: StateFlow<Boolean> = _showSuccessMessage.asStateFlow()
-    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
-    val isSaved: StateFlow<Boolean> = _isSaved.asStateFlow()
+    val isSaving = _isSaving.asStateFlow()
 
     /**
-     * Liste filtrée en temps réel. combine() fusionne la liste totale et la recherche.
+     * RECHERCHE DYNAMIQUE (Cahier des charges section 2)
+     * Combine la liste totale et la requête pour filtrer en temps réel.
      */
-    val filteredVendors: StateFlow<List<Vendor>> = combine(_vendors, _searchQuery) { vendors, query ->
+    val filteredVendors = combine(_vendors, _searchQuery) { list, query ->
         if (query.isBlank()) {
-            vendors
+            list
         } else {
-            vendors.filter { vendor ->
-                vendor.name.contains(query, ignoreCase = true) ||
-                        vendor.tableNumber.contains(query, ignoreCase = true)
+            list.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                        it.tableNumber.contains(query, ignoreCase = true)
             }
         }
     }.stateIn(
@@ -46,22 +46,14 @@ class VendorViewModel(private val repository: VendorRepository) : ViewModel() {
         initialValue = emptyList()
     )
 
-    init {
-        loadVendors() // Charger les données dès le démarrage
-    }
-
     /**
-     * Récupère la liste des vendeurs depuis la table PostgreSQL de Supabase
+     * Charge les vendeurs depuis le repository (Supabase PostgreSQL)
      */
-    // Dans VendorViewModel.kt
     fun loadVendors() {
         viewModelScope.launch {
             try {
-                val result = repository.getVendors()
-                _vendors.value = result
-                println("DEBUG: ${result.size} vendeurs récupérés")
+                _vendors.value = repository.getVendors()
             } catch (e: Exception) {
-                println("ERREUR CRITIQUE: ${e.message}")
                 e.printStackTrace()
             }
         }
@@ -75,75 +67,57 @@ class VendorViewModel(private val repository: VendorRepository) : ViewModel() {
     }
 
     /**
-     * ENREGISTREMENT COMPLET :
-     * 1. Upload l'image vers Storage
-     * 2. Enregistre les données textuelles vers PostgreSQL
+     * CRUD : CREATE ou UPDATE (Logique unifiée)
      */
-    fun saveVendor(name: String, table: String, category: String, imageBytes: ByteArray?) {
+    fun saveVendor(vendor: Vendor, imageBytes: ByteArray?, onComplete: () -> Unit) {
         viewModelScope.launch {
-            _isSaving.value = true // Affiche le cercle de chargement dans l'UI
+            _isSaving.value = true
             try {
-                var finalImageUrl: String? = null
+                var finalUrl = vendor.imageUrl
 
-                // 1. GESTION DE L'IMAGE
+                // Upload d'image si nécessaire
                 if (imageBytes != null) {
                     val fileName = "vendor_${System.currentTimeMillis()}.jpg"
-                    // On récupère l'URL publique après l'upload
-                    finalImageUrl = repository.uploadAndGetUrl(fileName, imageBytes)
+                    finalUrl = repository.uploadImage(fileName, imageBytes)
                 }
 
-                // 2. PRÉPARATION DE L'OBJET
-                val newVendor = Vendor(
-                    name = name,
-                    tableNumber = table,
-                    category = category,
-                    imageUrl = finalImageUrl
-                )
+                // Utilisation de .copy() du Data Class Vendor
+                val vendorToSave = vendor.copy(imageUrl = finalUrl)
 
-                // 3. ENREGISTREMENT EN BASE DE DONNÉES
-                repository.addVendor(newVendor)
+                if (vendorToSave.id == null) {
+                    repository.addVendor(vendorToSave)
+                } else {
+                    repository.updateVendor(vendorToSave)
+                }
 
-                // 4. ACTIONS DE SUCCÈS
-                loadVendors() // Rafraîchir la liste en arrière-plan
-                _isSaved.value = true // Déclenche la navigation retour dans AddVendorScreen
-                _showSuccessMessage.value = true // Prépare l'affichage du message de succès
-
+                loadVendors()
+                onComplete()
             } catch (e: Exception) {
-                // Log important pour le débogage dans Logcat
-                println("ERREUR SUPABASE: ${e.localizedMessage}")
                 e.printStackTrace()
             } finally {
-                _isSaving.value = false // Arrête le chargement quoi qu'il arrive
+                _isSaving.value = false
             }
         }
     }
 
     /**
-     * Réinitialise l'état après que la navigation retour a été effectuée
-     */
-    fun resetSaveState() {
-        _isSaved.value = false
-    }
-
-    /**
-     * Réinitialise le message de succès (Snackbar)
-     */
-    fun resetSuccessMessage() {
-        _showSuccessMessage.value = false
-    }
-
-    /**
-     * Supprime un vendeur de Supabase
+     * CRUD : DELETE
      */
     fun deleteVendor(id: Int) {
         viewModelScope.launch {
             try {
                 repository.deleteVendor(id)
-                loadVendors() // Rafraîchir la liste après suppression
+                loadVendors()
             } catch (e: Exception) {
-                println("ERREUR SUPPRESSION: ${e.localizedMessage}")
                 e.printStackTrace()
             }
         }
+    }
+
+    /**
+     * Récupère un vendeur par son ID pour l'édition ou les détails
+     */
+    fun getVendorById(id: Int): Vendor? {
+        return _vendors.value.find { it.id == id }
     }
 }

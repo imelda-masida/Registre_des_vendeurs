@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,25 +27,38 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-// Importez votre ressource de logo ici si vous en avez une (ex: R.drawable.logo_app)
-// import com.example.registredesvendeurs.R
+
+import com.example.registredesvendeurs.R // Assurez-vous que cet import est correct pour votre logo
+
+import com.example.registredesvendeurs.repository.Vendor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddVendorScreen(viewModel: VendorViewModel, onBack: () -> Unit) {
+fun AddEditVendorScreen(
+    viewModel: VendorViewModel,
+    vendorId: Int? = null, // Si null = Ajout, si Int = Modification
+    onBack: () -> Unit
+) {
+    // États du formulaire
     var name by remember { mutableStateOf("") }
     var tableNumber by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var existingImageUrl by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val isSaving by viewModel.isSaving.collectAsState()
-    val isSaved by viewModel.isSaved.collectAsState()
 
-    LaunchedEffect(isSaved) {
-        if (isSaved) {
-            onBack()
-            viewModel.resetSaveState()
+    // INITIALISATION : Si on est en mode modification, on charge les données
+    LaunchedEffect(vendorId) {
+        if (vendorId != null && vendorId != -1) {
+            val vendor = viewModel.getVendorById(vendorId)
+            vendor?.let {
+                name = it.name
+                tableNumber = it.tableNumber
+                category = it.category
+                existingImageUrl = it.imageUrl
+            }
         }
     }
 
@@ -56,26 +70,13 @@ fun AddVendorScreen(viewModel: VendorViewModel, onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // LOGO DANS LA BARRE (Icône par défaut ou votre image)
-                        Icon(
-                            imageVector = Icons.Default.Storefront,
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Ajouter un Vendeur", fontWeight = FontWeight.Bold)
-                    }
+                    Text(if (vendorId == null || vendorId == -1) "Nouveau Vendeur" else "Modifier Vendeur")
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack, enabled = !isSaving) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                }
             )
         }
     ) { padding ->
@@ -89,126 +90,94 @@ fun AddVendorScreen(viewModel: VendorViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // --- LOGO PRINCIPAL AU SOMMET (Optionnel) ---
+            // --- LOGO (Respect du Branding MD3) ---
             Spacer(modifier = Modifier.height(10.dp))
+            // Remplacer par votre logo ou une icône de magasin
             Icon(
-                imageVector = Icons.Default.AppRegistration, // Remplacez par painterResource(id = R.drawable.votre_logo)
-                contentDescription = "Logo App",
+                imageVector = Icons.Default.Store,
+                contentDescription = "Logo",
                 modifier = Modifier.size(60.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-            )
-            Text(
-                text = "REGISTRE DES VENDEURS",
-                style = MaterialTheme.typography.labelMedium,
-                letterSpacing = 2.sp,
-                color = MaterialTheme.colorScheme.secondary
+                tint = MaterialTheme.colorScheme.primary
             )
 
-            // --- ZONE DE LA PHOTO DU VENDEUR ---
+            // --- ZONE PHOTO ---
             Box(
                 modifier = Modifier
-                    .padding(top = 8.dp)
                     .size(150.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 if (selectedImageUri != null) {
-                    AsyncImage(
-                        model = selectedImageUri,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                    AsyncImage(model = selectedImageUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                } else if (existingImageUrl != null) {
+                    AsyncImage(model = existingImageUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.PhotoCamera,
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text("Photo", style = MaterialTheme.typography.labelSmall)
-                    }
+                    Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(40.dp))
                 }
             }
 
-            TextButton(
-                onClick = {
-                    photoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-                enabled = !isSaving
-            ) {
-                Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (selectedImageUri == null) "Choisir une photo" else "Changer la photo")
+            TextButton(onClick = { photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                Text("Choisir une photo de l'étalage")
             }
 
             // --- CHAMPS DE SAISIE ---
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Nom complet") },
-                leadingIcon = { Icon(Icons.Default.Badge, null) },
+                value = name, onValueChange = { name = it },
+                label = { Text("Nom du vendeur") },
+                leadingIcon = { Icon(Icons.Default.Person, null) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !isSaving
+                shape = RoundedCornerShape(16.dp)
             )
 
             OutlinedTextField(
-                value = tableNumber,
-                onValueChange = { tableNumber = it },
-                label = { Text("Numéro de l'étalage") },
-                leadingIcon = { Icon(Icons.Default.TableRestaurant, null) },
+                value = tableNumber, onValueChange = { tableNumber = it },
+                label = { Text("Numéro de table / Pavillon") },
+                leadingIcon = { Icon(Icons.Default.TableBar, null) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !isSaving
+                shape = RoundedCornerShape(16.dp)
             )
 
             OutlinedTextField(
-                value = category,
-                onValueChange = { category = it },
-                label = { Text("Catégorie de produits") },
-                leadingIcon = { Icon(Icons.Default.Inventory2, null) },
+                value = category, onValueChange = { category = it },
+                label = { Text("Catégorie (ex: Habits, Fruits...)") },
+                leadingIcon = { Icon(Icons.Default.Category, null) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !isSaving
+                shape = RoundedCornerShape(16.dp)
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // --- BOUTON ENREGISTRER ---
+            // --- BOUTON SAUVEGARDER ---
             Button(
                 onClick = {
                     val imageBytes = selectedImageUri?.let { uri ->
                         context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                     }
-                    viewModel.saveVendor(name, tableNumber, category, imageBytes)
+
+                    // On crée l'objet Vendor (avec l'ID si c'est une modification)
+                    val vendorToSave = Vendor(
+                        id = if (vendorId == -1) null else vendorId,
+                        name = name,
+                        tableNumber = tableNumber,
+                        category = category,
+                        imageUrl = existingImageUrl
+                    )
+
+                    viewModel.saveVendor(vendorToSave, imageBytes) {
+                        onBack() // Ferme l'écran après succès
+                    }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp),
-                shape = RoundedCornerShape(18.dp),
-                enabled = name.isNotBlank() && tableNumber.isNotBlank() && !isSaving,
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                enabled = name.isNotBlank() && tableNumber.isNotBlank() && !isSaving
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text("Synchronisation...")
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                 } else {
-                    Icon(Icons.Default.Save, contentDescription = null)
-                    Spacer(Modifier.width(12.dp))
-                    Text("ENREGISTRER", fontWeight = FontWeight.Bold)
+                    Text("ENREGISTRER DANS LA BASE")
                 }
             }
-            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
