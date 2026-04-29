@@ -53,12 +53,15 @@ class VendorViewModel(private val repository: VendorRepository) : ViewModel() {
     /**
      * Récupère la liste des vendeurs depuis la table PostgreSQL de Supabase
      */
+    // Dans VendorViewModel.kt
     fun loadVendors() {
         viewModelScope.launch {
             try {
-                _vendors.value = repository.getVendors()
+                val result = repository.getVendors()
+                _vendors.value = result
+                println("DEBUG: ${result.size} vendeurs récupérés")
             } catch (e: Exception) {
-                println("ERREUR CHARGEMENT: ${e.localizedMessage}")
+                println("ERREUR CRITIQUE: ${e.message}")
                 e.printStackTrace()
             }
         }
