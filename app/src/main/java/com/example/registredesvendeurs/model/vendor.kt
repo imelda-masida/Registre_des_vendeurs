@@ -1,15 +1,12 @@
-package com.example.registredesvendeurs.repository // <--- TRÈS IMPORTANT
+package com.example.registredesvendeurs.model // Définit l'endroit où se trouve le fichier
 
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.Serializable // Nécessaire pour convertir l'objet en JSON pour Supabase
 
-@Serializable
-data class Vendor(
-    val id: Int? = null,
-    val name: String,
-    @SerialName("table_number")
-    val tableNumber: String,
-    val category: String,
-    @SerialName("image_url")
-    val imageUrl: String? = null
+@Serializable // Permet à Supabase de lire et d'écrire cet objet automatiquement
+data class Vendor( // Définit une classe de données pour le vendeur
+    val id: Int? = null, // Identifiant unique (null par défaut car généré par la BDD)
+    val name: String, // Nom du vendeur ou du commerce
+    val tableNumber: String, // Numéro de l'emplacement ou de la table
+    val category: String, // Catégorie de produits vendus
+    val imageUrl: String? = null // Lien vers la photo stockée sur Supabase Storage
 )

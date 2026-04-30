@@ -1,6 +1,7 @@
 package com.example.registredesvendeurs.repository
 
 import com.example.registredesvendeurs.SupabaseClient
+import com.example.registredesvendeurs.model.Vendor
 
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage

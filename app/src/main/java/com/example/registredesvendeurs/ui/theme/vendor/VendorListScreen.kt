@@ -1,15 +1,14 @@
 package com.example.registredesvendeurs.ui.theme.vendor
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -22,12 +21,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.registredesvendeurs.repository.Vendor
+import com.example.registredesvendeurs.model.Vendor
 
-/**
- * ÉCRAN PRINCIPAL : Liste des vendeurs avec recherche dynamique
- * Respecte le cahier des charges : Material 3 SearchBar et MVVM StateFlow
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VendorListScreen(
@@ -36,143 +31,86 @@ fun VendorListScreen(
     onNavigateToEdit: (Int) -> Unit,
     onNavigateToDetail: (Int) -> Unit
 ) {
-    // Collecte des états depuis le ViewModel (Logique réactive)
     val vendors by viewModel.filteredVendors.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
     var active by remember { mutableStateOf(false) }
 
-    // Charger les données au démarrage
-    LaunchedEffect(Unit) {
-        viewModel.loadVendors()
-    }
-
     Scaffold(
         topBar = {
-            // 1. RECHERCHE DYNAMIQUE (Section 2 du cahier des charges)
-            SearchBar(
-                query = query,
-                onQueryChange = { viewModel.onSearchQueryChange(it) },
-                onSearch = { active = false },
-                active = active,
-                onActiveChange = { active = it },
-                placeholder = { Text("Rechercher un vendeur ou table...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (active) {
-                        IconButton(onClick = { active = false }) {
-                            Icon(Icons.Default.Close, contentDescription = null)
+            Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // LOGO DE MARCHÉ
+                            Icon(Icons.Default.Storefront, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(12.dp))
+                            Text("Registre des vendeurs", fontWeight = FontWeight.ExtraBold)
                         }
                     }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = if (active) 0.dp else 16.dp)
-            ) {
-                // Suggestions ou historique (optionnel)
+                )
+                SearchBar(
+                    query = query,
+                    onQueryChange = { viewModel.onSearchQueryChange(it) },
+                    onSearch = { active = false },
+                    active = active,
+                    onActiveChange = { active = it },
+                    placeholder = { Text("Rechercher un vendeur...") },
+                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                Icon(Icons.Default.Clear, null)
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = if (active) 0.dp else 16.dp).padding(bottom = 8.dp)
+                ) { }
             }
         },
         floatingActionButton = {
-            // Bouton d'ajout stylisé Material 3
             ExtendedFloatingActionButton(
                 onClick = onNavigateToAdd,
-                icon = { Icon(Icons.Default.Add, null) },
-                text = { Text("Nouveau Vendeur") },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = Color.White
-            )
+            ) {
+                Icon(Icons.Default.Add, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Nouveau Vendeur")
+            }
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-
-            // Affichage de la liste ou message vide
-            if (vendors.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Aucun vendeur trouvé", color = Color.Gray)
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp) // Espace pour le FAB
-                ) {
-                    items(vendors) { vendor ->
-                        VendorCard(
-                            vendor = vendor,
-                            onClick = { vendor.id?.let { onNavigateToDetail(it) } },
-                            onDelete = { vendor.id?.let { viewModel.deleteVendor(it) } }
-                        )
-                    }
-                }
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            items(vendors, key = { it.id ?: 0 }) { vendor ->
+                VendorCardElegant(
+                    vendor = vendor,
+                    onClick = { vendor.id?.let { onNavigateToDetail(it) } },
+                    onDelete = { vendor.id?.let { viewModel.deleteVendor(it) } }
+                )
             }
         }
     }
 }
 
-/**
- * COMPOSANT ITEM : La carte d'un vendeur
- */
 @Composable
-fun VendorCard(
-    vendor: Vendor,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
-) {
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clickable { onClick() },
+fun VendorCardElegant(vendor: Vendor, onClick: () -> Unit, onDelete: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
-                model = vendor.imageUrl ?: "https://via.placeholder.com/150",
-                contentDescription = "Photo étalage",
-                modifier = Modifier
-                    .size(70.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                model = if (vendor.imageUrl.isNullOrBlank()) "https://ui-avatars.com/api/?name=${vendor.name}&background=random" else vendor.imageUrl,
+                contentDescription = null,
+                modifier = Modifier.size(55.dp).clip(CircleShape).background(Color.LightGray),
                 contentScale = ContentScale.Crop
             )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = vendor.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Table n°${vendor.tableNumber}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.padding(top = 4.dp)
-                ) {
-                    Text(
-                        text = vendor.category,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(vendor.name, fontWeight = FontWeight.Bold)
+                Text("Table n°${vendor.tableNumber}", style = MaterialTheme.typography.bodySmall)
             }
-
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Supprimer",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
+            IconButton(onClick = onDelete) { Icon(Icons.Default.DeleteOutline, null, tint = Color.Red.copy(0.6f)) }
         }
     }
 }
