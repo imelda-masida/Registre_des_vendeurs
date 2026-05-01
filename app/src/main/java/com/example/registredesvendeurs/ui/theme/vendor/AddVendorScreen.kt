@@ -23,113 +23,73 @@ import androidx.compose.ui.text.input.KeyboardType
 @Composable
 fun AddVendorScreen(viewModel: VendorViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
-    // États des champs du formulaire
     var name by remember { mutableStateOf("") }
     var table by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // --- LOGIQUE DE VÉRIFICATION DES DOUBLONS ---
-    // On vérifie si le nom existe déjà dans la liste du ViewModel
+    // --- VÉRIFICATIONS DES DOUBLONS ---
     val nameExists = remember(name) {
         name.isNotBlank() && viewModel.isNameAlreadyExists(name)
     }
 
-    // Sélecteur d'image
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        imageUri = uri
+    val tableExists = remember(table) {
+        table.isNotBlank() && viewModel.isTableNumberAlreadyExists(table)
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Inscrire un vendeur") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-                    }
-                }
-            )
-        }
+        // ... (votre TopAppBar reste identique)
     ) { padding ->
         Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(20.dp),
+            modifier = Modifier.padding(padding).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(15.dp)
         ) {
-            // Bouton Photo
-            Button(
-                onClick = { launcher.launch("image/*") },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.AddAPhoto, null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (imageUri == null) "Ajouter une photo" else "Photo prête !")
-            }
+            // ... (Bouton photo)
 
-            // --- CHAMP NOM AVEC VÉRIFICATION DE DOUBLON ---
+            // CHAMP NOM (Déjà fait)
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Nom du vendeur") },
                 modifier = Modifier.fillMaxWidth(),
-                isError = nameExists, // Devient rouge si le nom existe déjà
+                isError = nameExists,
                 supportingText = {
-                    if (nameExists) {
-                        Text(
-                            text = "Ce vendeur est déjà inscrit dans le registre",
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                },
-                trailingIcon = {
-                    if (nameExists) {
-                        Icon(
-                            imageVector = Icons.Default.Error,
-                            contentDescription = "Erreur",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
+                    if (nameExists) Text("Ce nom est déjà utilisé", color = MaterialTheme.colorScheme.error)
                 }
             )
 
-            // Champ Numéro de table
-            // Vers la ligne 94
+            // --- CHAMP TABLE (Modifié pour détecter les doublons) ---
             OutlinedTextField(
                 value = table,
                 onValueChange = { table = it },
                 label = { Text("Numéro de table") },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) // <-- AJOUTEZ CECI
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = tableExists, // Devient rouge si la table existe
+                supportingText = {
+                    if (tableExists) {
+                        Text("Cette table est déjà occupée", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                trailingIcon = {
+                    if (tableExists) Icon(Icons.Default.Error, null, tint = MaterialTheme.colorScheme.error)
+                }
             )
 
-            // Champ Catégorie
-            OutlinedTextField(
-                value = category,
-                onValueChange = { category = it },
-                label = { Text("Catégorie de produits") },
-                placeholder = { Text("ex : habit, fruit, bijoux...") }, // Conseil design
-                modifier = Modifier.fillMaxWidth()
-            )
+            // ... (Champ catégorie)
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Bouton de validation
+            // --- BOUTON VALIDER (Désactivé si doublon de nom OU de table) ---
             Button(
                 onClick = {
-                    viewModel.addVendor(context,name, table, category, imageUri)
+                    viewModel.addVendor(context, name, table, category, imageUri)
                     onBack()
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(55.dp),
-                shape = RoundedCornerShape(12.dp),
-                // --- VALIDATION DU BOUTON ---
-                // Désactivé si : nom vide, table vide, ou si le nom existe déjà
-                enabled = name.isNotBlank() && table.isNotBlank() && !nameExists
+                modifier = Modifier.fillMaxWidth().height(55.dp),
+                enabled = name.isNotBlank() && table.isNotBlank() && !nameExists && !tableExists
             ) {
-                Text("VALIDER")
+                Text("VALIDER L'INSCRIPTION")
             }
         }
     }

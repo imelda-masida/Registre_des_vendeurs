@@ -40,6 +40,14 @@ class VendorViewModel : ViewModel() {
         }
     }
 
+
+    /**
+     * Vérifie si un numéro de table existe déjà
+     */
+    fun isTableNumberAlreadyExists(tableNumber: String): Boolean {
+        return _vendors.value.any { it.tableNumber == tableNumber }
+    }
+
     /**
      * Vérifie si un nom de vendeur existe déjà (insensible à la casse)
      */
