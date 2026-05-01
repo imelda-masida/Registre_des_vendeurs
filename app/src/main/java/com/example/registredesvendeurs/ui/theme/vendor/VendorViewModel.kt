@@ -1,5 +1,6 @@
 package com.example.registredesvendeurs.ui.theme.vendor
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -39,7 +40,6 @@ class VendorViewModel : ViewModel() {
         }
     }
 
-
     /**
      * Vérifie si un nom de vendeur existe déjà (insensible à la casse)
      */
@@ -47,14 +47,14 @@ class VendorViewModel : ViewModel() {
         return _vendors.value.any { it.name.equals(name, ignoreCase = true) }
     }
 
-    /** * Met à jour les informations d'un vendeur existant
+    /**
+     * Met à jour les informations d'un vendeur existant
      */
     fun updateVendor(id: Int, name: String, table: String, category: String, imageUri: Uri?) {
         viewModelScope.launch {
             _vendors.update { currentList ->
                 currentList.map { vendor ->
                     if (vendor.id == id) {
-                        // On crée une copie du vendeur avec les nouvelles valeurs
                         vendor.copy(
                             name = name,
                             tableNumber = table,
@@ -66,17 +66,40 @@ class VendorViewModel : ViewModel() {
                     }
                 }
             }
-            // On rafraîchit la liste filtrée pour la recherche
             onSearchQueryChange(_searchQuery.value)
         }
     }
 
-    // Logique d'ajout (à lier avec Supabase)
-    fun addVendor(name: String, table: String, category: String, uri: Uri?) {
+    /**
+     * Logique d'ajout d'un vendeur
+     */
+    fun addVendor(
+        context: Context,
+        name: String,
+        table: String,
+        category: String,
+        uri: Uri?
+    ) {
         viewModelScope.launch {
-            val newId = (_vendors.value.maxOfOrNull { it.id ?: 0 } ?: 0) + 1
-            val newVendor = Vendor(newId, name, table, category, uri?.toString())
-            _vendors.value += newVendor
+            try {
+                // On calcule l'ID (en attendant l'ID automatique de Supabase)
+                val newId = (_vendors.value.maxOfOrNull { it.id ?: 0 } ?: 0) + 1
+
+                // Création du vendeur
+                val newVendor = Vendor(
+                    id = newId,
+                    name = name,
+                    tableNumber = table,
+                    category = category,
+                    imageUrl = uri?.toString()
+                )
+
+                // Mise à jour de la liste locale
+                _vendors.value = _vendors.value + newVendor
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }

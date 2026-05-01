@@ -15,10 +15,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddVendorScreen(viewModel: VendorViewModel, onBack: () -> Unit) {
+    val context = LocalContext.current
     // États des champs du formulaire
     var name by remember { mutableStateOf("") }
     var table by remember { mutableStateOf("") }
@@ -91,11 +95,13 @@ fun AddVendorScreen(viewModel: VendorViewModel, onBack: () -> Unit) {
             )
 
             // Champ Numéro de table
+            // Vers la ligne 94
             OutlinedTextField(
                 value = table,
                 onValueChange = { table = it },
                 label = { Text("Numéro de table") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) // <-- AJOUTEZ CECI
             )
 
             // Champ Catégorie
@@ -112,7 +118,7 @@ fun AddVendorScreen(viewModel: VendorViewModel, onBack: () -> Unit) {
             // Bouton de validation
             Button(
                 onClick = {
-                    viewModel.addVendor(name, table, category, imageUri)
+                    viewModel.addVendor(context,name, table, category, imageUri)
                     onBack()
                 },
                 modifier = Modifier
