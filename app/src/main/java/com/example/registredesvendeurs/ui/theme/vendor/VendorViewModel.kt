@@ -39,6 +39,32 @@ class VendorViewModel : ViewModel() {
         }
     }
 
+    // Dans VendorViewModel.kt
+
+    /** * Met à jour les informations d'un vendeur existant
+     */
+    fun updateVendor(id: Int, name: String, table: String, category: String, imageUri: Uri?) {
+        viewModelScope.launch {
+            _vendors.update { currentList ->
+                currentList.map { vendor ->
+                    if (vendor.id == id) {
+                        // On crée une copie du vendeur avec les nouvelles valeurs
+                        vendor.copy(
+                            name = name,
+                            tableNumber = table,
+                            category = category,
+                            imageUrl = imageUri?.toString() ?: vendor.imageUrl
+                        )
+                    } else {
+                        vendor
+                    }
+                }
+            }
+            // On rafraîchit la liste filtrée pour la recherche
+            onSearchQueryChange(_searchQuery.value)
+        }
+    }
+
     // Logique d'ajout (à lier avec Supabase)
     fun addVendor(name: String, table: String, category: String, uri: Uri?) {
         viewModelScope.launch {

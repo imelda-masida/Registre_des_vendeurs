@@ -23,6 +23,19 @@ class MainActivity : ComponentActivity() {
                         VendorListScreen(vm, { navController.navigate("add") }, { id -> navController.navigate("edit/$id") }, { id -> navController.navigate("detail/$id") })
                     }
                     composable("add") { AddVendorScreen(vm) { navController.popBackStack() } }
+                    // Dans le NavHost de votre MainActivity.kt
+
+                    composable(
+                        route = "edit/{vendorId}",
+                        arguments = listOf(navArgument("vendorId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val id = backStackEntry.arguments?.getInt("vendorId") ?: 0
+                        EditVendorScreen(
+                            viewModel = vm,
+                            vendorId = id,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
                     composable(
                         "detail/{vendorId}",
                         arguments = listOf(navArgument("vendorId") { type = NavType.IntType })
