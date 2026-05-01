@@ -39,7 +39,13 @@ class VendorViewModel : ViewModel() {
         }
     }
 
-    // Dans VendorViewModel.kt
+
+    /**
+     * Vérifie si un nom de vendeur existe déjà (insensible à la casse)
+     */
+    fun isNameAlreadyExists(name: String): Boolean {
+        return _vendors.value.any { it.name.equals(name, ignoreCase = true) }
+    }
 
     /** * Met à jour les informations d'un vendeur existant
      */

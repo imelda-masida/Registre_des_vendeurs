@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Error // Import pour l'icône d'erreur
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -18,37 +19,112 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddVendorScreen(viewModel: VendorViewModel, onBack: () -> Unit) {
+    // États des champs du formulaire
     var name by remember { mutableStateOf("") }
     var table by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { imageUri = it }
+    // --- LOGIQUE DE VÉRIFICATION DES DOUBLONS ---
+    // On vérifie si le nom existe déjà dans la liste du ViewModel
+    val nameExists = remember(name) {
+        name.isNotBlank() && viewModel.isNameAlreadyExists(name)
+    }
+
+    // Sélecteur d'image
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        imageUri = uri
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Inscrire un vendeur") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    }
+                }
             )
         }
     ) { padding ->
-        Column(Modifier.padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
-            Button(onClick = { launcher.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(15.dp)
+        ) {
+            // Bouton Photo
+            Button(
+                onClick = { launcher.launch("image/*") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Icon(Icons.Default.AddAPhoto, null)
                 Spacer(Modifier.width(8.dp))
                 Text(if (imageUri == null) "Ajouter une photo" else "Photo prête !")
             }
-            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom du vendeur") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = table, onValueChange = { table = it }, label = { Text("Numéro de table") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Catégorie de produits(ex : habit, fruit, bijoux...)") }, modifier = Modifier.fillMaxWidth())
 
+            // --- CHAMP NOM AVEC VÉRIFICATION DE DOUBLON ---
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Nom du vendeur") },
+                modifier = Modifier.fillMaxWidth(),
+                isError = nameExists, // Devient rouge si le nom existe déjà
+                supportingText = {
+                    if (nameExists) {
+                        Text(
+                            text = "Ce vendeur est déjà inscrit dans le registre",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
+                trailingIcon = {
+                    if (nameExists) {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = "Erreur",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            )
+
+            // Champ Numéro de table
+            OutlinedTextField(
+                value = table,
+                onValueChange = { table = it },
+                label = { Text("Numéro de table") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Champ Catégorie
+            OutlinedTextField(
+                value = category,
+                onValueChange = { category = it },
+                label = { Text("Catégorie de produits") },
+                placeholder = { Text("ex : habit, fruit, bijoux...") }, // Conseil design
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Bouton de validation
             Button(
-                onClick = { viewModel.addVendor(name, table, category, imageUri); onBack() },
-                modifier = Modifier.fillMaxWidth().height(55.dp),
+                onClick = {
+                    viewModel.addVendor(name, table, category, imageUri)
+                    onBack()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(55.dp),
                 shape = RoundedCornerShape(12.dp),
-                enabled = name.isNotBlank() && table.isNotBlank()
-            ) { Text("VALIDER") }
+                // --- VALIDATION DU BOUTON ---
+                // Désactivé si : nom vide, table vide, ou si le nom existe déjà
+                enabled = name.isNotBlank() && table.isNotBlank() && !nameExists
+            ) {
+                Text("VALIDER")
+            }
         }
     }
 }
