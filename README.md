@@ -21,11 +21,6 @@ Organisation du Code
 - `ui/` : Écrans Compose, ViewModels et thèmes (Couleurs/Typographie). Utilisation de :  https://material-foundation.github.io/material-theme-builder/.
 - `navigation/` : Configuration des routes entre la liste et le formulaire.
 
- Configuration
-1. Clonez le projet.
-2. Remplacez `SUPABASE_URL` et `SUPABASE_KEY` dans le fichier `SupabaseInstance.kt` par vos propres identifiants.
-3. Configurez une table `vendors` et un bucket `images` sur votre console Supabase.
-4. Compilez et lancez sur un appareil Android (API 24+).
-
+ 
 Présentation Vidéo
 []
