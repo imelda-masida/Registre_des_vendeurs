@@ -22,5 +22,23 @@ Organisation du Code
 - `navigation/` : Configuration des routes entre la liste et le formulaire.
 
  
-Présentation Vidéo
-[]
+Structure des dossiers (Arborescence)
+app
+└── src
+    └── main
+        ├── java/com/example/registredesvendeurs/
+        │   ├── model/
+        │   │   └── Vendor.kt                     // [Fichier 1] Le Modèle (Data Class)
+        │   │
+        │   ├── SupaBaseClient.kt                 // [Fichier 2] Configuration du Backend
+        │   │
+        │   ├── MainActivity.kt                   // [Fichier 3] Gestionnaire de Navigation
+        │   │
+        │   └── ui/theme/vendor/
+        │       ├── VendorViewModel.kt            // [Fichier 4] La Logique métier (Cerveau)
+        │       ├── VendorListScreen.kt           // [Fichier 5] Écran d'accueil (Liste + Recherche)
+        │       ├── AddVendorScreen.kt            // [Fichier 6] Écran d'ajout (Photo + Saisie)
+        │       ├── EditVendorScreen.kt           // [Fichier 7] Écran de modification
+        │       └── VendorDetailScreen.kt         // [Fichier 7bis] Écran de détails
+        │
+        └── res/                                  // Ressources (Icônes, Images, thèmes)
